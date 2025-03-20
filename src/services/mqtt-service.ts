@@ -1,6 +1,6 @@
-import mqtt from "mqtt";
-import { EufyService } from "./eufy-service";
-import { LoggingService } from "./logging-service";
+import mqtt from 'mqtt';
+import { EufyService } from './eufy-service';
+import { LoggingService } from './logging-service';
 
 export interface MqttServiceConfig {
   brokerUrl: string;
@@ -42,48 +42,42 @@ export class MqttService {
   }
 
   public async close(): Promise<void> {
-    this.loggingService.info("Disconnecting from MQTT broker...");
+    this.loggingService.info('Disconnecting from MQTT broker...');
     this.client.end();
   }
 
   private setupEventHandlers(): void {
-    this.client.on("connect", () => {
-      this.loggingService.info("Connected to MQTT broker");
+    this.client.on('connect', () => {
+      this.loggingService.info('Connected to MQTT broker');
       this.connected = true;
     });
 
-    this.client.on("error", (error) => {
-      this.loggingService.error("MQTT error:", error);
+    this.client.on('error', (error) => {
+      this.loggingService.error('MQTT error:', error);
     });
 
-    this.client.on("close", () => {
-      this.loggingService.info("Disconnected from MQTT broker");
+    this.client.on('close', () => {
+      this.loggingService.info('Disconnected from MQTT broker');
       this.connected = false;
     });
   }
 
   private setupEufyListeners(): void {
     // Listen for status changes
-    this.eufyService.on("statusChanged", (status: any) => {
+    this.eufyService.on('statusChanged', (status: any) => {
       this.publishToMqtt(`${this.config.topic}/status`, status);
     });
 
     // Listen for device property changes
-    this.eufyService.on("devicePropertyChanged", (data: any) => {
-      this.publishToMqtt(
-        `${this.config.topic}/${data.deviceName}/${data.property}`,
-        data.value
-      );
+    this.eufyService.on('devicePropertyChanged', (data: any) => {
+      this.publishToMqtt(`${this.config.topic}/${data.deviceName}/${data.property}`, data.value);
     });
 
     // Listen for device events
-    this.eufyService.on("deviceEvent", (event: any) => {
-      this.publishToMqtt(
-        `${this.config.topic}/${event.deviceName}/event/${event.eventType}`,
-        {
-          timestamp: event.timestamp,
-        }
-      );
+    this.eufyService.on('deviceEvent', (event: any) => {
+      this.publishToMqtt(`${this.config.topic}/${event.deviceName}/event/${event.eventType}`, {
+        timestamp: event.timestamp,
+      });
     });
   }
 
@@ -95,13 +89,10 @@ export class MqttService {
           retain: true,
         });
       } catch (error) {
-        this.loggingService.error(
-          `Error publishing to MQTT topic ${topic}:`,
-          error
-        );
+        this.loggingService.error(`Error publishing to MQTT topic ${topic}:`, error);
       }
     } else {
-      this.loggingService.error("Cannot publish to MQTT: not connected");
+      this.loggingService.error('Cannot publish to MQTT: not connected');
     }
   }
 }

@@ -1,19 +1,14 @@
-import fs from "fs";
-import path from "path";
-import {
-  createLogger,
-  format,
-  transports,
-  Logger as WinstonLogger,
-} from "winston";
+import fs from 'fs';
+import path from 'path';
+import { createLogger, format, transports, Logger as WinstonLogger } from 'winston';
 
 export enum LogLevel {
-  TRACE = "trace",
-  DEBUG = "debug",
-  INFO = "info",
-  WARN = "warn",
-  ERROR = "error",
-  FATAL = "fatal",
+  TRACE = 'trace',
+  DEBUG = 'debug',
+  INFO = 'info',
+  WARN = 'warn',
+  ERROR = 'error',
+  FATAL = 'fatal',
 }
 
 export interface LoggingServiceConfig {
@@ -30,7 +25,7 @@ export class LoggingService {
   private serviceContext: string;
 
   constructor(config: LoggingServiceConfig) {
-    this.serviceContext = config.serviceContext || "unknown";
+    this.serviceContext = config.serviceContext || 'unknown';
 
     // Create log directory if logging to file and it doesn't exist
     if (config.logToFile && config.logDir) {
@@ -49,10 +44,8 @@ export class LoggingService {
             format.timestamp(),
             format.printf((info: any) => {
               const { timestamp, level, message, service, ...meta } = info;
-              return `${timestamp} [${
-                service || this.serviceContext
-              }] ${level}: ${message} ${
-                Object.keys(meta).length ? JSON.stringify(meta) : ""
+              return `${timestamp} [${service || this.serviceContext}] ${level}: ${message} ${
+                Object.keys(meta).length ? JSON.stringify(meta) : ''
               }`;
             })
           ),
@@ -82,19 +75,19 @@ export class LoggingService {
   private mapLogLevel(level: LogLevel): string {
     switch (level) {
       case LogLevel.TRACE:
-        return "silly";
+        return 'silly';
       case LogLevel.DEBUG:
-        return "debug";
+        return 'debug';
       case LogLevel.INFO:
-        return "info";
+        return 'info';
       case LogLevel.WARN:
-        return "warn";
+        return 'warn';
       case LogLevel.ERROR:
-        return "error";
+        return 'error';
       case LogLevel.FATAL:
-        return "error"; // Winston doesn't have 'fatal', use 'error' instead
+        return 'error'; // Winston doesn't have 'fatal', use 'error' instead
       default:
-        return "info";
+        return 'info';
     }
   }
 

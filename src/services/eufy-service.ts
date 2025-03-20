@@ -6,10 +6,10 @@ import {
   LoginOptions,
   P2PConnectionType,
   Station,
-} from "eufy-security-client";
-import { EventEmitter } from "events";
-import { existsSync, mkdirSync } from "fs";
-import { LoggingService, LogLevel } from "./logging-service";
+} from 'eufy-security-client';
+import { EventEmitter } from 'events';
+import { existsSync, mkdirSync } from 'fs';
+import { LoggingService, LogLevel } from './logging-service';
 
 export interface EufyServiceConfig {
   username: string;
@@ -42,8 +42,8 @@ export class EufyService extends EventEmitter {
   private api: EufySecurity | null = null;
   private config: EufyServiceConfig;
   private connected = false;
-  private captchaId: string = "";
-  private captchaImage: string = "";
+  private captchaId: string = '';
+  private captchaImage: string = '';
   private waitingForCaptcha = false;
   private waitingForTfa = false;
   private deviceStatus: DeviceStatus = {
@@ -67,14 +67,9 @@ export class EufyService extends EventEmitter {
   }
 
   public async initialize(): Promise<void> {
-    this.logger.info("Initializing Eufy Security client...");
+    this.logger.info('Initializing Eufy Security client...');
 
-    var logLevel =
-      this.loglevel === LogLevel.DEBUG
-        ? 1
-        : this.loglevel === LogLevel.TRACE
-        ? 0
-        : 2;
+    var logLevel = this.loglevel === LogLevel.DEBUG ? 1 : this.loglevel === LogLevel.TRACE ? 0 : 2;
     // Create configuration object
     const eufyConfig = {
       username: this.config.username,
@@ -92,7 +87,7 @@ export class EufyService extends EventEmitter {
         level: logLevel,
         categories: [
           {
-            category: "all",
+            category: 'all',
             level: logLevel,
           },
         ],
@@ -115,10 +110,7 @@ export class EufyService extends EventEmitter {
     try {
       await this.api.connect();
     } catch (error) {
-      this.logger.error(
-        "Initial connection failed. Will retry via TFA/captcha flow if needed:",
-        error
-      );
+      this.logger.error('Initial connection failed. Will retry via TFA/captcha flow if needed:', error);
     }
   }
 
@@ -152,13 +144,13 @@ export class EufyService extends EventEmitter {
     } as LoginOptions;
 
     this.waitingForCaptcha = false;
-    this.emit("captchaStatus", { waiting: false });
+    this.emit('captchaStatus', { waiting: false });
 
     try {
       await this.api.connect(connectOptions);
       return true;
     } catch (error) {
-      this.logger.error("Failed to connect with captcha:", error);
+      this.logger.error('Failed to connect with captcha:', error);
       return false;
     }
   }
@@ -175,20 +167,20 @@ export class EufyService extends EventEmitter {
     } as LoginOptions;
 
     this.waitingForTfa = false;
-    this.emit("tfaStatus", { waiting: false });
+    this.emit('tfaStatus', { waiting: false });
 
     try {
       await this.api.connect(connectOptions);
       return true;
     } catch (error) {
-      this.logger.error("Failed to connect with TFA code:", error);
+      this.logger.error('Failed to connect with TFA code:', error);
       return false;
     }
   }
 
   public async close(): Promise<void> {
     if (this.connected && this.api) {
-      this.logger.info("Disconnecting from Eufy Security...");
+      this.logger.info('Disconnecting from Eufy Security...');
       this.api.close();
     }
   }
@@ -197,10 +189,8 @@ export class EufyService extends EventEmitter {
     if (!this.api) return;
 
     // Add device when discovered
-    this.api.on("device added", (device) => {
-      this.logger.info(
-        `Device added: ${device.getName()} (${device.getSerial()})`
-      );
+    this.api.on('device added', (device) => {
+      this.logger.info(`Device added: ${device.getName()} (${device.getSerial()})`);
 
       // Update device status
       const deviceInfo = {
@@ -210,9 +200,7 @@ export class EufyService extends EventEmitter {
         properties: device.getProperties(),
       };
 
-      const existingDeviceIndex = this.deviceStatus.devices.findIndex(
-        (d) => d.serial === device.getSerial()
-      );
+      const existingDeviceIndex = this.deviceStatus.devices.findIndex((d) => d.serial === device.getSerial());
 
       if (existingDeviceIndex >= 0) {
         this.deviceStatus.devices[existingDeviceIndex] = deviceInfo;
@@ -220,21 +208,17 @@ export class EufyService extends EventEmitter {
         this.deviceStatus.devices.push(deviceInfo);
       }
 
-      this.emit("deviceStatus", this.deviceStatus);
+      this.emit('deviceStatus', this.deviceStatus);
     });
 
     // Listen for device events
-    this.api.on("device property changed", (device, name, value: any) => {
+    this.api.on('device property changed', (device, name, value: any) => {
       this.logger.info(
-        `Device property changed: ${device.getName()} - ${name}: ${
-          typeof value === "object" ? "Object/Buffer" : value
-        }`
+        `Device property changed: ${device.getName()} - ${name}: ${typeof value === 'object' ? 'Object/Buffer' : value}`
       );
 
       // Update device properties in status
-      const deviceIndex = this.deviceStatus.devices.findIndex(
-        (d) => d.serial === device.getSerial()
-      );
+      const deviceIndex = this.deviceStatus.devices.findIndex((d) => d.serial === device.getSerial());
 
       if (deviceIndex >= 0) {
         if (!this.deviceStatus.devices[deviceIndex].properties) {
@@ -242,18 +226,13 @@ export class EufyService extends EventEmitter {
         }
 
         // Set the property value
-        this.setDeviceProperty(
-          name,
-          this.deviceStatus.devices[deviceIndex].properties,
-          value,
-          device.getName()
-        );
+        this.setDeviceProperty(name, this.deviceStatus.devices[deviceIndex].properties, value, device.getName());
 
-        this.emit("deviceStatus", this.deviceStatus);
+        this.emit('deviceStatus', this.deviceStatus);
       }
 
       // Also emit a dedicated property changed event for real-time updates
-      this.emit("devicePropertyChanged", {
+      this.emit('devicePropertyChanged', {
         deviceName: device.getName(),
         property: name,
         value: value,
@@ -264,39 +243,38 @@ export class EufyService extends EventEmitter {
     this.setupDeviceEvents();
 
     // TFA handling
-    this.api.on("tfa request", () => {
+    this.api.on('tfa request', () => {
       this.logger.info(`TFA requested`);
       this.logger.info(`Check Email for code`);
 
       this.waitingForTfa = true;
-      this.emit("tfaStatus", { waiting: true });
+      this.emit('tfaStatus', { waiting: true });
     });
 
     // Captcha handling
-    this.api.on("captcha request", (id, captcha) => {
+    this.api.on('captcha request', (id, captcha) => {
       this.captchaId = id;
       this.captchaImage = captcha;
 
       this.logger.info(`\n\nCaptcha requested: ${id}`);
 
       this.waitingForCaptcha = true;
-      this.emit("captchaStatus", { waiting: true, captchaImage: captcha });
+      this.emit('captchaStatus', { waiting: true, captchaImage: captcha });
     });
 
- 
     // Connection events
-    this.api.on("connect", async () => {
-      this.logger.info("Connected to Eufy Security");
+    this.api.on('connect', async () => {
+      this.logger.info('Connected to Eufy Security');
       this.connected = true;
       this.deviceStatus.connected = true;
       this.waitingForCaptcha = false;
       this.waitingForTfa = false;
 
-      this.emit("connectionStatus", { connected: true });
-      this.emit("captchaStatus", { waiting: false });
-      this.emit("tfaStatus", { waiting: false });
-      this.emit("statusChanged", {
-        status: "connected",
+      this.emit('connectionStatus', { connected: true });
+      this.emit('captchaStatus', { waiting: false });
+      this.emit('tfaStatus', { waiting: false });
+      this.emit('statusChanged', {
+        status: 'connected',
         timestamp: new Date().toISOString(),
       });
 
@@ -309,21 +287,15 @@ export class EufyService extends EventEmitter {
         const properties: any = {};
         const rawProperties = d.getProperties();
 
-      
         for (const key in rawProperties) {
           if (rawProperties.hasOwnProperty(key)) {
             const propValue = rawProperties[key];
 
             // Special handling for picture/image properties
-            this.setDeviceProperty(
-              key,
-              properties,
-              propValue,
-              d.getName()
-            );
+            this.setDeviceProperty(key, properties, propValue, d.getName());
 
             // Emit property changed event
-            this.emit("devicePropertyChanged", {
+            this.emit('devicePropertyChanged', {
               deviceName: d.getName(),
               property: key,
               value: propValue,
@@ -341,17 +313,17 @@ export class EufyService extends EventEmitter {
         });
       });
 
-      this.emit("deviceStatus", this.deviceStatus);
+      this.emit('deviceStatus', this.deviceStatus);
     });
 
-    this.api.on("close", () => {
-      this.logger.info("Disconnected from Eufy Security");
+    this.api.on('close', () => {
+      this.logger.info('Disconnected from Eufy Security');
       this.connected = false;
       this.deviceStatus.connected = false;
 
-      this.emit("connectionStatus", { connected: false });
-      this.emit("statusChanged", {
-        status: "disconnected",
+      this.emit('connectionStatus', { connected: false });
+      this.emit('statusChanged', {
+        status: 'disconnected',
         timestamp: new Date().toISOString(),
       });
 
@@ -359,10 +331,10 @@ export class EufyService extends EventEmitter {
       setTimeout(async () => {
         if (!this.connected && this.api) {
           try {
-            this.logger.info("Attempting to reconnect...");
+            this.logger.info('Attempting to reconnect...');
             await this.api.connect();
           } catch (err) {
-            this.logger.error("Failed to reconnect:", err);
+            this.logger.error('Failed to reconnect:', err);
           }
         }
       }, 30000); // Try to reconnect after 30 seconds
@@ -372,134 +344,127 @@ export class EufyService extends EventEmitter {
   private setupDeviceEvents(): void {
     if (!this.api) return;
 
-    this.api.on("station close", (station: Station) => {
+    this.api.on('station close', (station: Station) => {
       this.logger.error(`Station connection closed for ${station.getSerial()}`);
     });
 
-    this.api.on(
-      "station connection error",
-      (station: Station, error: Error) => {
-        this.logger.error(
-          `Station connection error for ${station.getSerial()}: ${
-            error.message
-          }`
-        );
-      }
-    );
+    this.api.on('station connection error', (station: Station, error: Error) => {
+      this.logger.error(`Station connection error for ${station.getSerial()}: ${error.message}`);
+    });
 
     // Listen for motion detection events
-    this.api.on("device motion detected", (device, state) => {
+    this.api.on('device motion detected', (device, state) => {
       // Only trigger on the start of the event (state === true)
       if (state) {
         this.logger.info(`Motion detected on ${device.getName()}`);
-        this.recordEvent(device.getName(), "motion");
-        this.emit("deviceEvent", {
+        this.recordEvent(device.getName(), 'motion');
+        this.emit('deviceEvent', {
           deviceName: device.getName(),
-          eventType: "motion",
+          eventType: 'motion',
           timestamp: new Date().toISOString(),
         });
       }
     });
 
     // Listen for person detection events
-    this.api.on("device person detected", (device, state, person) => {
+    this.api.on('device person detected', (device, state, person) => {
       if (state) {
         this.logger.info(`Person detected on ${device.getName()}`);
-        this.recordEvent(device.getName(), "person");
-        this.emit("deviceEvent", {
+        this.recordEvent(device.getName(), 'person');
+        this.emit('deviceEvent', {
           deviceName: device.getName(),
-          eventType: "person",
+          eventType: 'person',
           timestamp: new Date().toISOString(),
         });
       }
     });
 
     // Listen for crying detection events (for indoor cameras)
-    this.api.on("device crying detected", (device, state) => {
+    this.api.on('device crying detected', (device, state) => {
       if (state) {
         this.logger.info(`Crying detected on ${device.getName()}`);
-        this.recordEvent(device.getName(), "crying");
-        this.emit("deviceEvent", {
+        this.recordEvent(device.getName(), 'crying');
+        this.emit('deviceEvent', {
           deviceName: device.getName(),
-          eventType: "crying",
+          eventType: 'crying',
           timestamp: new Date().toISOString(),
         });
       }
     });
 
     // Listen for sound detection events
-    this.api.on("device sound detected", (device, state) => {
+    this.api.on('device sound detected', (device, state) => {
       if (state) {
         this.logger.info(`Sound detected on ${device.getName()}`);
-        this.recordEvent(device.getName(), "sound");
-        this.emit("deviceEvent", {
+        this.recordEvent(device.getName(), 'sound');
+        this.emit('deviceEvent', {
           deviceName: device.getName(),
-          eventType: "sound",
+          eventType: 'sound',
           timestamp: new Date().toISOString(),
         });
       }
     });
 
     // Listen for pet detection events
-    this.api.on("device pet detected", (device, state) => {
+    this.api.on('device pet detected', (device, state) => {
       if (state) {
         this.logger.info(`Pet detected on ${device.getName()}`);
-        this.recordEvent(device.getName(), "pet");
-        this.emit("deviceEvent", {
+        this.recordEvent(device.getName(), 'pet');
+        this.emit('deviceEvent', {
           deviceName: device.getName(),
-          eventType: "pet",
+          eventType: 'pet',
           timestamp: new Date().toISOString(),
         });
       }
     });
 
     // Listen for dog detection events
-    this.api.on("device dog detected", (device, state) => {
+    this.api.on('device dog detected', (device, state) => {
       if (state) {
         this.logger.info(`Dog detected on ${device.getName()}`);
-        this.recordEvent(device.getName(), "dog");
-        this.emit("deviceEvent", {
+        this.recordEvent(device.getName(), 'dog');
+        this.emit('deviceEvent', {
           deviceName: device.getName(),
-          eventType: "dog",
+          eventType: 'dog',
           timestamp: new Date().toISOString(),
         });
       }
     });
 
     // Listen for vehicle detection events
-    this.api.on("device vehicle detected", (device, state) => {
+    this.api.on('device vehicle detected', (device, state) => {
       if (state) {
         this.logger.info(`Vehicle detected on ${device.getName()}`);
-        this.recordEvent(device.getName(), "vehicle");
-        this.emit("deviceEvent", {
+        this.recordEvent(device.getName(), 'vehicle');
+        this.emit('deviceEvent', {
           deviceName: device.getName(),
-          eventType: "vehicle",
+          eventType: 'vehicle',
           timestamp: new Date().toISOString(),
         });
       }
     });
 
     // Listen for doorbell events
-    this.api.on("device rings", (device, state) => {
+    this.api.on('device rings', (device, state) => {
       if (state) {
         this.logger.info(`Doorbell ring at ${device.getName()}`);
-        this.recordEvent(device.getName(), "doorbell");
-        this.emit("deviceEvent", {
+        this.recordEvent(device.getName(), 'doorbell');
+        this.emit('deviceEvent', {
           deviceName: device.getName(),
-          eventType: "doorbell",
+          eventType: 'doorbell',
           timestamp: new Date().toISOString(),
         });
       }
     });
 
     // Listen for package events
-    this.api.on("device package delivered", (device, state) => {
+    this.api.on('device package delivered', (device, state) => {
       if (state) {
         this.logger.info(`Package delivered at ${device.getName()}`);
-        this.recordEvent(device.getName(), "package");
-        this.emit("deviceEvent", {
+        this.recordEvent(device.getName(), 'package');
+        this.emit('deviceEvent', {
           deviceName: device.getName(),
-          eventType: "package",
+          eventType: 'package',
           timestamp: new Date().toISOString(),
         });
       }
@@ -518,24 +483,19 @@ export class EufyService extends EventEmitter {
       this.deviceStatus.lastEvents.pop();
     }
 
-    this.emit("deviceStatus", this.deviceStatus);
+    this.emit('deviceStatus', this.deviceStatus);
   }
 
-  private setDeviceProperty(
-    propName: string,
-    properties: any,
-    value: any,
-    deviceName: string
-  ): void {
-    if (propName.toLowerCase() === "picture") {
+  private setDeviceProperty(propName: string, properties: any, value: any, deviceName: string): void {
+    if (propName.toLowerCase() === 'picture') {
       if (!!value) {
         if (Buffer.isBuffer(value?.data)) {
           properties[propName] = {
-            type: "Buffer",
+            type: 'Buffer',
             data: Array.from(value?.data),
           };
         } else {
-          this.logger.error("Invalid picture data received");
+          this.logger.error('Invalid picture data received');
         }
       }
     } else {
@@ -543,10 +503,7 @@ export class EufyService extends EventEmitter {
     }
   }
 
-  private findStationForDevice(
-    device: Device,
-    stations: Station[]
-  ): Station | null {
+  private findStationForDevice(device: Device, stations: Station[]): Station | null {
     var s = stations.find((s) => s.getSerial() === device.getStationSerial());
 
     return s || null;
