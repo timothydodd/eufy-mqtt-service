@@ -168,40 +168,6 @@ The status message has this format:
 }
 ```
 
-## 🏠 Home Assistant Integration
-
-To integrate with Home Assistant, add the following to your `configuration.yaml`:
-
-```yaml
-mqtt:
-  binary_sensor:
-    - name: "Front Door Motion"
-      state_topic: "eufy/events/Front Door Camera/event/motion"
-      value_template: "{{ value_json.timestamp is defined }}"
-      device_class: motion
-      off_delay: 30
-
-    - name: "Front Door Person"
-      state_topic: "eufy/events/Front Door Camera/event/person"
-      value_template: "{{ value_json.timestamp is defined }}"
-      device_class: occupancy
-      off_delay: 30
-
-  sensor:
-    - name: "Front Door Battery"
-      state_topic: "eufy/events/Front Door Camera/batteryLevel"
-      device_class: battery
-      unit_of_measurement: "%"
-      
-  binary_sensor:
-    - name: "Eufy Connection"
-      state_topic: "eufy/events/status"
-      value_template: "{{ value_json.status == 'connected' }}"
-      device_class: connectivity
-```
-
-Replace `Front Door Camera` with your actual camera name as shown in the logs when the service starts.
-
 ## ⚙️ Configuration Options
 
 Set these values in your `.env` file:
