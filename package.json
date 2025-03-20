@@ -1,0 +1,43 @@
+{
+  "name": "eufy-mqtt-service",
+  "version": "1.0.0",
+  "description": "A service that connects to Eufy camera network and publishes events to MQTT",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "debug": "node --inspect-brk -r ts-node/register src/index.ts",
+    "build": "tsc && xcopy /E /I /Y src\\public dist\\public",
+    "build-docker": "tsc && mkdir -p dist/public && cp -r src/public/* dist/public/",
+    "start": "npm run build  && node dist/index.js",
+    "watch": "tsc -w",
+    "clean": "rimraf dist",
+    "lint": "eslint . --ext .ts"
+  },
+  "keywords": [
+    "eufy",
+    "mqtt",
+    "camera",
+    "iot",
+    "security"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "dotenv": "^16.4.7",
+    "eufy-security-client": "^3.1.1",
+    "express": "^4.21.2",
+    "mqtt": "^5.10.4",
+    "socket.io": "^4.8.1",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/mqtt": "^2.5.0",
+    "@types/node": "^22.13.10",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.2"
+  }
+}

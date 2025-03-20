@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eufy MQTT Service</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+
+        .header {
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e5e5e5;
+            margin-bottom: 30px;
+        }
+
+        .connection-status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .event-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .captcha-container img {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 15px;
+        }
+
+        .device-card {
+            margin-bottom: 15px;
+        }
+
+        .device-properties {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .auth-container {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .device-image {
+            max-width: 100%;
+            height: auto;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+            cursor: pointer;
+        }
+
+        .image-container {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .modal-body img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .status-connected {
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 15px;
+            display: inline-block;
+        }
+
+        .status-disconnected {
+            color: #dc3545;
+            font-weight: bold;
+            margin-right: 15px;
+            display: inline-block;
+        }
+
+        .status-pending {
+            color: #fd7e14;
+            font-weight: bold;
+            margin-right: 15px;
+            display: inline-block;
+        }
+
+        .connection-monitor {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Eufy MQTT Service</h1>
+        </div>
+
+        <div id="auth-section">
+            <!-- Captcha form (hidden by default) -->
+            <div id="captcha-container" class="auth-container" style="display: none;">
+                <h3>Captcha Required</h3>
+                <div class="captcha-image"></div>
+                <form id="captcha-form" class="mb-3">
+                    <div class="mb-3">
+                        <label for="captcha-code" class="form-label">Enter the captcha code shown above:</label>
+                        <input type="text" class="form-control" id="captcha-code" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Submit Captcha</button>
+                </form>
+            </div>
+
+            <!-- TFA form (hidden by default) -->
+            <div id="tfa-container" class="auth-container" style="display: none;">
+                <h3>Two-Factor Authentication Required</h3>
+                <p>Please check your email for a verification code and enter it below:</p>
+                <form id="tfa-form" class="mb-3">
+                    <div class="mb-3">
+                        <label for="tfa-code" class="form-label">Verification Code:</label>
+                        <input type="text" class="form-control" id="tfa-code" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Submit Code</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="connection-status" class="connection-status disconnected">
+            <strong>Status:</strong> <span id="status-text">Disconnected</span>
+        </div>
+
+        <div class="connection-monitor">
+            <div id="websocket-status" class="status-pending">WebSocket: Checking...</div>
+            <div id="eufy-status" class="status-pending">Eufy: Checking...</div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Devices</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="device-list">
+                            <p>No devices found.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Recent Events</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul id="event-list" class="list-group event-list">
+                            <li class="list-group-item">No events yet.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageModalLabel">Device Image</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalImage" src="" alt="Device image">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Connect to Socket.io
+        const socket = io();
+
+        // Get DOM elements
+        const connectionStatus = document.getElementById('connection-status');
+        const statusText = document.getElementById('status-text');
+        const captchaContainer = document.getElementById('captcha-container');
+        const captchaForm = document.getElementById('captcha-form');
+        const captchaCodeInput = document.getElementById('captcha-code');
+        const captchaImage = document.querySelector('.captcha-image');
+        const tfaContainer = document.getElementById('tfa-container');
+        const tfaForm = document.getElementById('tfa-form');
+        const tfaCodeInput = document.getElementById('tfa-code');
+        const deviceList = document.getElementById('device-list');
+        const eventList = document.getElementById('event-list');
+        const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+        const modalImage = document.getElementById('modalImage');
+
+        // Initialize connection state checking
+        checkConnectionStatus();
+        setInterval(checkConnectionStatus, 30000);
+
+        function checkConnectionStatus() {
+            // Update WebSocket status based on socket connection
+            const wsStatus = document.getElementById('websocket-status');
+            if (socket.connected) {
+                wsStatus.textContent = 'WebSocket: Connected';
+                wsStatus.className = 'status-connected';
+            } else {
+                wsStatus.textContent = 'WebSocket: Disconnected';
+                wsStatus.className = 'status-disconnected';
+            }
+
+            // Request Eufy connection status
+            socket.emit('verifyConnection', (response) => {
+                const eufyStatus = document.getElementById('eufy-status');
+                if (eufyStatus) {
+                    if (response && response.eufyConnected) {
+                        eufyStatus.textContent = 'Eufy: Connected';
+                        eufyStatus.className = 'status-connected';
+                    } else {
+                        eufyStatus.textContent = 'Eufy: Disconnected';
+                        eufyStatus.className = 'status-disconnected';
+                    }
+                }
+                console.log('Connection verification:', response);
+            });
+        }
+
+        // Handle connection status updates
+        socket.on('connectionStatus', (data) => {
+            if (data.connected) {
+                connectionStatus.classList.remove('disconnected');
+                connectionStatus.classList.add('connected');
+                statusText.textContent = 'Connected';
+            } else {
+                connectionStatus.classList.remove('connected');
+                connectionStatus.classList.add('disconnected');
+                statusText.textContent = 'Disconnected';
+            }
+        });
+
+        // Handle captcha requests
+        socket.on('captchaStatus', (data) => {
+            if (data.waiting) {
+                // Show captcha container
+                captchaContainer.style.display = 'block';
+
+                // Display the captcha image
+                if (data.captchaImage) {
+                    captchaImage.innerHTML = `<img src="${data.captchaImage}" alt="Captcha">`;
+                }
+            } else {
+                // Hide captcha container
+                captchaContainer.style.display = 'none';
+            }
+        });
+
+        // Handle TFA requests
+        socket.on('tfaStatus', (data) => {
+            if (data.waiting) {
+                // Show TFA container
+                tfaContainer.style.display = 'block';
+            } else {
+                // Hide TFA container
+                tfaContainer.style.display = 'none';
+            }
+        });
+
+        // Handle device status updates
+        socket.on('deviceStatus', (data) => {
+            updateDeviceList(data.devices);
+            updateEventList(data.lastEvents);
+        });
+
+        // Also listen for individual property changes for real-time updates
+        socket.on('devicePropertyChanged', (data) => {
+            updateDeviceProperty(data.deviceName, data.property, data.value);
+        });
+
+        // Submit captcha form
+        captchaForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const captchaCode = captchaCodeInput.value.trim();
+
+            if (captchaCode) {
+                fetch('/submit-captcha', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ captchaCode })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            captchaContainer.style.display = 'none';
+                            captchaCodeInput.value = '';
+                        } else {
+                            alert('Failed to submit captcha: ' + (data.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error submitting captcha:', error);
+                        alert('Error submitting captcha. Check console for details.');
+                    });
+            }
+        });
+
+        // Submit TFA form
+        tfaForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const tfaCode = tfaCodeInput.value.trim();
+
+            if (tfaCode) {
+                fetch('/submit-tfa', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ tfaCode })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            tfaContainer.style.display = 'none';
+                            tfaCodeInput.value = '';
+                        } else {
+                            alert('Failed to submit verification code: ' + (data.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error submitting verification code:', error);
+                        alert('Error submitting verification code. Check console for details.');
+                    });
+            }
+        });
+
+        // Helper function to check if a value is an image buffer
+        function isImageBuffer(value) {
+            return typeof value === 'object' &&
+                value !== null &&
+                value.type === 'Buffer' &&
+                Array.isArray(value.data);
+        }
+
+        // Helper function to convert buffer to base64 image
+        function bufferToBase64Image(buffer) {
+            // Convert the buffer data to a Uint8Array
+            const uint8Array = new Uint8Array(buffer.data);
+
+            // Convert Uint8Array to a binary string
+            let binaryString = '';
+            uint8Array.forEach(byte => {
+                binaryString += String.fromCharCode(byte);
+            });
+
+            // Convert binary string to base64
+            const base64String = btoa(binaryString);
+
+            // Determine image format (default to JPEG)
+            let imageFormat = 'jpeg';
+
+            // Check for JPEG header (FF D8)
+            if (uint8Array.length > 2 && uint8Array[0] === 255 && uint8Array[1] === 216) {
+                imageFormat = 'jpeg';
+            }
+            // Check for PNG header (89 50 4E 47)
+            else if (uint8Array.length > 4 && uint8Array[0] === 137 && uint8Array[1] === 80 && uint8Array[2] === 78 && uint8Array[3] === 71) {
+                imageFormat = 'png';
+            }
+
+            return `data:image/${imageFormat};base64,${base64String}`;
+        }
+
+        // Update device list
+        function updateDeviceList(devices) {
+            if (!devices || devices.length === 0) {
+                deviceList.innerHTML = '<p>No devices found.</p>';
+                return;
+            }
+
+            let html = '';
+
+            devices.forEach(device => {
+                let hasImage = false;
+                let imageData = null;
+
+                // Create a unique ID for the device card
+                const deviceCardId = `device-${device.serial}`;
+
+                html += `
+                    <div class="card device-card" id="${deviceCardId}">
+                        <div class="card-header">
+                            <h6>${device.name} (${device.type})</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text"><small>Serial: ${device.serial}</small></p>
+                `;
+
+                // Check for image properties first
+                if (device.properties) {
+                    for (const [key, value] of Object.entries(device.properties)) {
+                        if (key.toLowerCase().includes('picture') && isImageBuffer(value)) {
+                            hasImage = true;
+                            imageData = bufferToBase64Image(value);
+
+                            html += `
+                                <div class="image-container" id="image-container-${device.serial}">
+                                    <h6>Device Image:</h6>
+                                    <img src="${imageData}" class="device-image" alt="Device image" id="image-${device.serial}"
+                                         onclick="showImageInModal('${imageData}')">
+                                    <div class="text-muted small">Updated: ${new Date().toLocaleTimeString()}</div>
+                                </div>
+                            `;
+                            break;
+                        }
+                    }
+                }
+
+                html += `
+                            <h6>Properties:</h6>
+                            <div class="device-properties">
+                                <table class="table table-sm" id="properties-table-${device.serial}">
+                                    <thead>
+                                        <tr>
+                                            <th>Property</th>
+                                            <th>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                `;
+
+                // Add all properties
+                if (device.properties) {
+                    for (const [key, value] of Object.entries(device.properties)) {
+                        // Skip showing the picture property in the table if we've already displayed it
+                        if (key.toLowerCase().includes('picture') && isImageBuffer(value) && hasImage) {
+                            html += `
+                                <tr id="prop-${device.serial}-${key.replace(/\s+/g, '_')}">
+                                    <td>${key}</td>
+                                    <td><span class="badge bg-info">Image displayed above</span></td>
+                                </tr>
+                            `;
+                        } else {
+                            html += `
+                                <tr id="prop-${device.serial}-${key.replace(/\s+/g, '_')}">
+                                    <td>${key}</td>
+                                    <td>${typeof value === 'object' ? JSON.stringify(value) : value}</td>
+                                </tr>
+                            `;
+                        }
+                    }
+                }
+
+                html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            deviceList.innerHTML = html;
+        }
+
+        // Update a specific device property (for real-time updates)
+        function updateDeviceProperty(deviceName, propertyName, value) {
+            // Find the device by name
+            const devices = document.querySelectorAll('.device-card');
+            for (const deviceCard of devices) {
+                if (deviceCard.querySelector('.card-header h6').textContent.includes(deviceName)) {
+                    // Get device serial from the card ID
+                    const deviceSerial = deviceCard.id.replace('device-', '');
+
+                    // If this is a picture property, update the image
+                    if (propertyName.toLowerCase().includes('picture') && isImageBuffer(value)) {
+                        const imageData = bufferToBase64Image(value);
+                        const imageContainer = document.getElementById(`image-container-${deviceSerial}`);
+                        const imageElement = document.getElementById(`image-${deviceSerial}`);
+
+                        if (imageElement) {
+                            // Update existing image
+                            imageElement.src = imageData;
+                            const timestamp = imageContainer.querySelector('.text-muted');
+                            if (timestamp) timestamp.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+                        } else if (deviceCard) {
+                            // Create new image container if it doesn't exist
+                            const newImageContainer = document.createElement('div');
+                            newImageContainer.id = `image-container-${deviceSerial}`;
+                            newImageContainer.className = 'image-container';
+                            newImageContainer.innerHTML = `
+                                <h6>Device Image:</h6>
+                                <img src="${imageData}" class="device-image" alt="Device image" id="image-${deviceSerial}"
+                                     onclick="showImageInModal('${imageData}')">
+                                <div class="text-muted small">Updated: ${new Date().toLocaleTimeString()}</div>
+                            `;
+                            deviceCard.querySelector('.card-body').insertBefore(
+                                newImageContainer,
+                                deviceCard.querySelector('.card-body h6')
+                            );
+                        }
+
+                        // Also update the property in the table
+                        const propRow = document.getElementById(`prop-${deviceSerial}-${propertyName.replace(/\s+/g, '_')}`);
+                        if (propRow) {
+                            propRow.children[1].innerHTML = '<span class="badge bg-info">Image displayed above</span>';
+                        } else {
+                            // Add the property row if it doesn't exist
+                            const propertiesTable = document.getElementById(`properties-table-${deviceSerial}`);
+                            if (propertiesTable) {
+                                const newRow = propertiesTable.insertRow();
+                                newRow.id = `prop-${deviceSerial}-${propertyName.replace(/\s+/g, '_')}`;
+                                newRow.innerHTML = `
+                                    <td>${propertyName}</td>
+                                    <td><span class="badge bg-info">Image displayed above</span></td>
+                                `;
+                            }
+                        }
+                    } else {
+                        // Update other properties in the table
+                        const propRow = document.getElementById(`prop-${deviceSerial}-${propertyName.replace(/\s+/g, '_')}`);
+                        if (propRow) {
+                            propRow.children[1].textContent = typeof value === 'object' ? JSON.stringify(value) : value;
+                        } else {
+                            // Add the property row if it doesn't exist
+                            const propertiesTable = document.getElementById(`properties-table-${deviceSerial}`);
+                            if (propertiesTable) {
+                                const newRow = propertiesTable.insertRow();
+                                newRow.id = `prop-${deviceSerial}-${propertyName.replace(/\s+/g, '_')}`;
+                                newRow.innerHTML = `
+                                    <td>${propertyName}</td>
+                                    <td>${typeof value === 'object' ? JSON.stringify(value) : value}</td>
+                                `;
+                            }
+                        }
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        // Update event list
+        function updateEventList(events) {
+            if (!events || events.length === 0) {
+                eventList.innerHTML = '<li class="list-group-item">No events yet.</li>';
+                return;
+            }
+
+            let html = '';
+
+            events.forEach(event => {
+                const date = new Date(event.timestamp);
+                const formattedTime = date.toLocaleTimeString();
+
+                html += `
+                    <li class="list-group-item">
+                        <strong>${event.deviceName}</strong>: ${event.eventType} detected
+                        <br>
+                        <small class="text-muted">${formattedTime}</small>
+                    </li>
+                `;
+            });
+
+            eventList.innerHTML = html;
+        }
+
+        // Function to show image in modal
+        function showImageInModal(imageUrl) {
+            modalImage.src = imageUrl;
+            imageModal.show();
+        }
+
+        // Expose the functions to global scope so they can be called from HTML
+        window.showImageInModal = showImageInModal;
+    </script>
+</body>
+
+</html>
