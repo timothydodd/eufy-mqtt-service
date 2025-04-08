@@ -9,28 +9,8 @@
 
 A service that connects your Eufy Security cameras to MQTT, enabling easy integration with home automation systems like Home Assistant, Node-RED, or any other MQTT-compatible platform.
 
-## 🚀 Features
+This project is NOT affiliated with, endorsed by, or connected to Anker or Eufy Security in any way. This is an independent, community-driven project that uses the Eufy security API.
 
-- 🔄 Connects to the Eufy Security cloud API
-- 📹 Monitors all your Eufy cameras and devices
-- 🚨 Detects and publishes events to MQTT:
-  - Motion detection
-  - Person detection
-  - Pet detection
-  - Dog detection
-  - Vehicle detection
-  - Sound detection
-  - Crying detection (for indoor cameras)
-  - Doorbell rings
-  - Package deliveries
-  - Property changes
-- 🔌 Maintains persistent connection with automatic reconnection
-- 🌐 Web-based status interface with:
-  - Device details and properties
-  - Recent event history
-  - Captcha entry for login challenges
-  - Two-factor authentication entry
-- 🐳 Docker support for easy deployment
 
 ## 📋 Prerequisites
 
@@ -168,40 +148,6 @@ The status message has this format:
 }
 ```
 
-## 🏠 Home Assistant Integration
-
-To integrate with Home Assistant, add the following to your `configuration.yaml`:
-
-```yaml
-mqtt:
-  binary_sensor:
-    - name: "Front Door Motion"
-      state_topic: "eufy/events/Front Door Camera/event/motion"
-      value_template: "{{ value_json.timestamp is defined }}"
-      device_class: motion
-      off_delay: 30
-
-    - name: "Front Door Person"
-      state_topic: "eufy/events/Front Door Camera/event/person"
-      value_template: "{{ value_json.timestamp is defined }}"
-      device_class: occupancy
-      off_delay: 30
-
-  sensor:
-    - name: "Front Door Battery"
-      state_topic: "eufy/events/Front Door Camera/batteryLevel"
-      device_class: battery
-      unit_of_measurement: "%"
-      
-  binary_sensor:
-    - name: "Eufy Connection"
-      state_topic: "eufy/events/status"
-      value_template: "{{ value_json.status == 'connected' }}"
-      device_class: connectivity
-```
-
-Replace `Front Door Camera` with your actual camera name as shown in the logs when the service starts.
-
 ## ⚙️ Configuration Options
 
 Set these values in your `.env` file:
@@ -210,12 +156,11 @@ Set these values in your `.env` file:
 |----------|-------------|---------|
 | EUFY_USERNAME | Your Eufy Security email address | - |
 | EUFY_PASSWORD | Your Eufy Security password | - |
-| EUFY_VERIFY_CODE | Two-factor authentication code (when requested) | - |
 | EUFY_COUNTRY | Your country code | US |
 | EUFY_LANGUAGE | Your language code | en |
 | PERSISTENT_DIR | Directory to store persistent data | ./persistent |
 | TRUSTED_DEVICE_NAME | Name of your device in Eufy | eufy-mqtt-service |
-| P2P_CONNECTION_SETUP | P2P connection type (0=quickest, 1=prefer P2P, 2=prefer MQTT)| 1 |
+| P2P_CONNECTION_SETUP | P2P connection type (2=quickest, 1=prefer P2P)| 1 |
 | POLLING_INTERVAL_MINUTES | How often to poll Eufy cloud | 10 |
 | EVENT_DURATION_SECONDS | Duration to consider events active | 10 |
 | ACCEPT_INVITATIONS | Whether to accept device sharing invitations | false |
